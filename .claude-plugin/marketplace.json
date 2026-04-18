@@ -1,0 +1,14 @@
+{
+  "name": "claude-code-autoresearch",
+  "owner": {
+    "name": "Marcelo Almeida",
+    "url": "https://github.com/marcelopazzo"
+  },
+  "plugins": [
+    {
+      "name": "claude-code-autoresearch",
+      "source": "./",
+      "description": "Autonomous experiment loop for Claude Code — run, measure, keep or discard. Ruby port of davebcn87/pi-autoresearch."
+    }
+  ]
+}
