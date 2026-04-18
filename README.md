@@ -23,18 +23,50 @@ Ruby port of [`davebcn87/pi-autoresearch`](https://github.com/davebcn87/pi-autor
 
 ## Install
 
-As a Claude Code plugin (recommended):
+### 1. Install Ruby gems (one-time)
+
+The MCP server and helper scripts run under Ruby and need three gems (`mcp`, `rack`, `puma`). `/plugin install` does **not** run `bundle install` for you, so do this first in a scratch directory:
 
 ```bash
-# From a Claude Code session:
-/plugin install https://github.com/marcelopazzo/claude-code-autoresearch
+git clone https://github.com/marcelopazzo/claude-code-autoresearch /tmp/car-gems
+cd /tmp/car-gems/mcp && bundle install
 ```
 
-Or install the Ruby gems locally once:
+Once Claude Code has installed the plugin (next step), run `bundle install` again inside the *installed* plugin's `mcp/` directory so its bundle is resolved. Find the path with `/plugin` in a Claude Code session — it'll be under `~/.claude/plugins/…/claude-code-autoresearch/mcp/`.
 
-```bash
-cd mcp && bundle install
+### 2. Add the marketplace and install the plugin
+
+From a Claude Code session:
+
 ```
+/plugin marketplace add https://github.com/marcelopazzo/claude-code-autoresearch
+/plugin install claude-code-autoresearch@claude-code-autoresearch
+```
+
+The first command registers this repo as a single-plugin marketplace; the second installs the plugin from it.
+
+### 3. (Optional) Enable the statusline
+
+Claude Code doesn't let plugins ship a `statusLine` directly — add it yourself to `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/plugins/claude-code-autoresearch/statusline/autoresearch.rb"
+  }
+}
+```
+
+(Adjust the path to match what `/plugin` reports as the install location.)
+
+### 4. (Optional) Rebind Ctrl+X to the dashboard
+
+Copy the snippet from [`keybindings.example.json`](keybindings.example.json) into `~/.claude/keybindings.json` to match the upstream pi-autoresearch keybindings.
+
+### 5. Restart Claude Code
+
+Reload the session so the MCP server, hooks, and (if you added it) statusline are picked up.
 
 ---
 

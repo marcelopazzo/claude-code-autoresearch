@@ -14,8 +14,6 @@
     "ruby",
     "rails"
   ],
-  "commands": "./commands",
-  "skills": "./skills",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -44,9 +42,5 @@
       "command": "ruby",
       "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/bin/autoresearch-mcp"]
     }
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "${CLAUDE_PLUGIN_ROOT}/statusline/autoresearch.rb"
   }
 }
