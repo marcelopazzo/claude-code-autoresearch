@@ -1,6 +1,21 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
+
+require "bundler"
+begin
+  unresolved = Bundler.definition.missing_specs.any?
+rescue Bundler::GemNotFound, Bundler::GitError
+  unresolved = true
+end
+
+if unresolved
+  Dir.chdir(File.expand_path("..", __dir__)) do
+    system("bundle", "install", "--quiet") or abort("autoresearch-mcp: bundle install failed")
+  end
+end
+
 require "bundler/setup"
 require_relative "../lib/autoresearch/server"
 

@@ -4,5 +4,4 @@ vendor/bundle/
 .DS_Store
 tmp/
 node_modules/
-mcp/Gemfile.lock
 .ruby-lsp/
