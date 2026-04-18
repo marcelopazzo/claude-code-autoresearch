@@ -22,10 +22,9 @@ module Autoresearch
           c.app app
           c.threads 0, 4
           c.workers 0
-          c.log_writer Puma::LogWriter.stdio
         end
         puts "🔬 autoresearch dashboard → http://#{host}:#{port}"
-        Puma::Launcher.new(config).run
+        Puma::Launcher.new(config, log_writer: Puma::LogWriter.stdio).run
       end
     end
   end
