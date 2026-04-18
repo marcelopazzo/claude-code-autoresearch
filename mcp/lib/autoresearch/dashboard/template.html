@@ -397,7 +397,7 @@
 
       return normalizePayload(
         objects.find(item => item.type === 'config') || null,
-        objects.filter(item => item.run != null)
+        objects.filter(item => item && item.type !== 'config' && item.commit != null)
       );
     }
 
@@ -409,7 +409,7 @@
       if (Array.isArray(doc)) {
         return normalizePayload(
           doc.find(item => item.type === 'config') || null,
-          doc.filter(item => item.run != null)
+          doc.filter(item => item && item.type !== 'config' && item.commit != null)
         );
       }
 
