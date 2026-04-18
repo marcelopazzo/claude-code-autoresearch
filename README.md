@@ -17,7 +17,7 @@ Ruby port of [`davebcn87/pi-autoresearch`](https://github.com/davebcn87/pi-autor
 | **Slash commands** | `/autoresearch <text>`, `/autoresearch off`, `/autoresearch clear`, `/autoresearch export`, `/autoresearch dashboard` |
 | **Hooks** | Auto-inject `autoresearch.md` into prompts, auto-resume the loop, session-start warnings |
 | **Statusline** | Live run count, best metric, confidence score |
-| **Dashboard** | Browser dashboard at `http://localhost:8765` (Rack + Puma) |
+| **Dashboard** | Browser dashboard at `http://localhost:8765` (Rack + Puma); set `AUTORESEARCH_HOST=0.0.0.0` to view from a phone on the same LAN |
 
 ---
 
