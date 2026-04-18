@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Tiny CLI for toggling autoresearch mode and clearing session state.
+# Used by slash commands (/autoresearch off, /autoresearch clear) and hooks.
+require "bundler/setup"
+require_relative "../lib/autoresearch"
+
+action = ARGV.shift
+
+case action
+when "on"
+  Autoresearch::Mode.enable!
+  puts "🔬 autoresearch mode: on"
+when "off"
+  Autoresearch::Mode.disable!
+  puts "autoresearch mode: off"
+when "status"
+  puts(Autoresearch::Mode.on? ? "on" : "off")
+when "clear"
+  [
+    Autoresearch::Paths.jsonl_path,
+    Autoresearch::Paths.md_path,
+    Autoresearch::Paths.sh_path,
+    Autoresearch::Paths.checks_path,
+    Autoresearch::Paths.ideas_path,
+    Autoresearch::Paths.mode_path
+  ].each do |p|
+    File.delete(p) if File.exist?(p)
+  end
+  puts "autoresearch session cleared"
+else
+  warn "usage: autoresearch-mode {on|off|status|clear}"
+  exit 64
+end

@@ -1,0 +1,7 @@
+{
+  "comment": "Optional keybindings — paste into ~/.claude/keybindings.json to map Ctrl+X and Ctrl+Shift+X to the autoresearch dashboard commands, matching the upstream pi-autoresearch experience.",
+  "bindings": [
+    { "key": "ctrl+x",       "command": "/autoresearch dashboard" },
+    { "key": "ctrl+shift+x", "command": "/autoresearch export" }
+  ]
+}

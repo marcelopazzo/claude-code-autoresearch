@@ -1,0 +1,52 @@
+{
+  "name": "claude-code-autoresearch",
+  "version": "0.1.0",
+  "description": "Autonomous experiment loop for Claude Code — run, measure, keep or discard. Ruby port of davebcn87/pi-autoresearch.",
+  "author": {
+    "name": "Marcelo Almeida"
+  },
+  "homepage": "https://github.com/marcelopazzo/claude-code-autoresearch",
+  "license": "MIT",
+  "keywords": [
+    "autoresearch",
+    "optimization",
+    "experiments",
+    "ruby",
+    "rails"
+  ],
+  "commands": "./commands",
+  "skills": "./skills",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/inject_context.rb" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto_resume.rb" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session_start.sh" }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "autoresearch": {
+      "command": "ruby",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/bin/autoresearch-mcp"]
+    }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "${CLAUDE_PLUGIN_ROOT}/statusline/autoresearch.rb"
+  }
+}
