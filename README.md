@@ -1,10 +1,31 @@
 # claude-code-autoresearch
 
+[![CI](https://github.com/marcelopazzo/claude-code-autoresearch/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelopazzo/claude-code-autoresearch/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/marcelopazzo/claude-code-autoresearch)](https://github.com/marcelopazzo/claude-code-autoresearch/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Ruby](https://img.shields.io/badge/ruby-%E2%89%A5%203.1-CC342D.svg)](https://www.ruby-lang.org)
+
 **Autonomous experiment loop for Claude Code.** Try an idea, measure it, keep what works, discard what doesn't, repeat forever. Built in Ruby, targeted at Rails build optimization but works for any workload.
+
+![Dashboard showing an autoresearch session optimizing ML-DSA-65 sign throughput](docs/dashboard.png)
 
 > **Not affiliated with Anthropic.** Claude Code is a product of Anthropic, PBC. This plugin is an independent extension.
 
 Ruby port of [`davebcn87/pi-autoresearch`](https://github.com/davebcn87/pi-autoresearch) — the original pi extension by [@davebcn87](https://github.com/davebcn87), inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch). The design (session files, tool surface, keep/revert loop, confidence scoring) is his; the Claude Code integration and Ruby implementation are this project's.
+
+---
+
+## How the loop works
+
+A handful of rules shape every iteration:
+
+- **One atomic change per iteration.** The agent edits, commits, then calls `run_experiment`. Each row in `autoresearch.jsonl` maps to exactly one commit.
+- **Mechanical verification only.** Benchmarks emit `METRIC name=value` lines on stdout. No subjective "did it get better?" — the number decides.
+- **Failed runs auto-revert.** `discard`, `crash`, and `checks_failed` reset HEAD to the pre-run commit and clean the working tree. Session files (`autoresearch.*`) are preserved.
+- **Correctness can gate `keep`.** If `autoresearch.checks.sh` exists, it runs after each passing benchmark. A failure blocks `keep` unless explicitly forced.
+- **JSONL is the source of truth.** Append-only, segment-aware, rebuilt on every tool call — resume-after-crash is free.
+- **Confidence is advisory.** MAD-based scoring flags noisy improvements; it never auto-discards.
+- **Bounded by `maxIterations`.** Loops stop at the cap (default 50). Set it in `autoresearch.config.json`.
 
 ---
 
