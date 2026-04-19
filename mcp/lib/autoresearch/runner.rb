@@ -11,6 +11,13 @@ module Autoresearch
     MAX_LINES = 10
     MAX_BYTES = 4 * 1024
 
+    # Envvars that leak the MCP server's own Bundler context into spawned
+    # commands. Unset them so user scripts (autoresearch.sh, autoresearch.checks.sh)
+    # run in their own project's Bundler environment, not the plugin's.
+    BUNDLER_ENV_VARS = %w[
+      BUNDLE_GEMFILE BUNDLER_SETUP RUBYOPT RUBYLIB GEM_HOME GEM_PATH
+    ].freeze
+
     Result = Struct.new(
       :command, :exit_code, :duration_s, :timed_out, :tail, :full_output,
       keyword_init: true
@@ -22,7 +29,9 @@ module Autoresearch
       timed_out = false
       exit_code = nil
 
-      Open3.popen2e(env, command, chdir: work_dir, pgroup: true) do |_stdin, out, wait_thr|
+      spawn_env = BUNDLER_ENV_VARS.each_with_object({}) { |k, h| h[k] = nil }.merge(env)
+
+      Open3.popen2e(spawn_env, command, chdir: work_dir, pgroup: true) do |_stdin, out, wait_thr|
         deadline = started + timeout_s
 
         loop do

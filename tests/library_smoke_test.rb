@@ -116,4 +116,26 @@ Dir.mktmpdir do |tmp|
   assert timeout_result.timed_out, "Runner: sleep 10 under 1s timeout triggers timed_out"
 end
 
+# ---------------------------------------------------------------------------
+# Runner: scrubs Bundler envvars so user scripts get a clean Ruby env
+# ---------------------------------------------------------------------------
+Dir.mktmpdir do |tmp|
+  ENV["BUNDLE_GEMFILE"] = "/some/parent/Gemfile"
+  ENV["RUBYOPT"]        = "-rfoo"
+  ENV["GEM_HOME"]       = "/parent/gems"
+
+  result = Autoresearch::Runner.run(
+    command: %(echo "BG=${BUNDLE_GEMFILE:-unset}" && echo "RO=${RUBYOPT:-unset}" && echo "GH=${GEM_HOME:-unset}"),
+    work_dir: tmp,
+    timeout_s: 5
+  )
+  assert result.tail.include?("BG=unset"), "Runner: scrubs BUNDLE_GEMFILE from spawn env"
+  assert result.tail.include?("RO=unset"), "Runner: scrubs RUBYOPT from spawn env"
+  assert result.tail.include?("GH=unset"), "Runner: scrubs GEM_HOME from spawn env"
+ensure
+  ENV.delete("BUNDLE_GEMFILE")
+  ENV.delete("RUBYOPT")
+  ENV.delete("GEM_HOME")
+end
+
 puts "\nAll checks passed."

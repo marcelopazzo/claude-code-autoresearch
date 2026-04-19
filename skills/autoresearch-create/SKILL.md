@@ -60,6 +60,8 @@ Bash script (`set -euo pipefail`) that: pre-checks fast (syntax errors in <1s), 
 
 **For fast, noisy benchmarks** (< 5s), run the workload multiple times inside the script and report the median. This produces stable data points and makes the confidence score reliable from the start. Slow workloads (ML training, large builds, Rails asset precompile) don't need this — single runs are fine.
 
+**Bundler context.** The MCP server unsets `BUNDLE_GEMFILE`, `BUNDLER_SETUP`, `RUBYOPT`, `RUBYLIB`, `GEM_HOME`, and `GEM_PATH` before spawning the script, so a Ruby benchmark runs in the project's Bundler context — not the plugin's. You can call `bundle exec` inside the script normally; no manual env scrubbing needed.
+
 **Rails example:**
 
 ```bash
