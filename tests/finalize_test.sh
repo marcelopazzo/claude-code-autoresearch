@@ -1012,6 +1012,116 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# Test: source branch shares namespace with generated branches
+#
+# When the source branch is e.g. autoresearch/sign-throughput, it occupies
+# refs/heads/autoresearch/sign-throughput as a file. Git can't then create
+# refs/heads/autoresearch/sign-throughput/01-... (would need a directory
+# at that path). Detect this in preflight with a clear instruction.
+# ---------------------------------------------------------------------------
+
+test_namespace_collision_with_source_branch() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  local REPO
+  REPO=$(mktemp -d)
+  cd "$REPO"
+  git init --quiet
+  git config core.hooksPath /dev/null
+  git config commit.gpgsign false
+  git config user.email "test@autoresearch.local"
+  git config user.name "Autoresearch Test"
+  git checkout -b main
+
+  echo "original" > file_a.txt
+  git add -A && git commit -m "initial" --quiet
+
+  # Source branch named exactly autoresearch/<goal> — collides with generated
+  # autoresearch/<goal>/01-...
+  git checkout -b autoresearch/colliding --quiet
+
+  echo "optimized" > file_a.txt
+  git add -A && git commit -m "optimize" --quiet
+  local FINAL
+  FINAL=$(git rev-parse HEAD)
+  local BASE
+  BASE=$(git merge-base HEAD main)
+
+  cat > "$REPO/groups.json" << EOF
+{
+  "base": "$BASE",
+  "trunk": "main",
+  "final_tree": "$FINAL",
+  "goal": "colliding",
+  "groups": [
+    {
+      "title": "Group 1",
+      "body": "Metric: 10 → 5 (-50%)",
+      "last_commit": "$FINAL",
+      "slug": "g1"
+    }
+  ]
+}
+EOF
+
+  local OUTPUT
+  if OUTPUT=$(bash "$FINALIZE" "$REPO/groups.json" 2>&1); then
+    fail_test "namespace collision" "Script should have failed in preflight"
+    cleanup_repo "$REPO"
+    return
+  fi
+
+  echo "$OUTPUT" | grep -q "blocks creating" || { fail_test "namespace collision" "Wrong error message: $OUTPUT"; cleanup_repo "$REPO"; return; }
+  echo "$OUTPUT" | grep -q "git branch -m" || { fail_test "namespace collision" "Error doesn't suggest rename: $OUTPUT"; cleanup_repo "$REPO"; return; }
+
+  # No partial branches should be left behind
+  git rev-parse "autoresearch/colliding/01-g1" >/dev/null 2>&1 \
+    && { fail_test "namespace collision" "Partial branch was created"; cleanup_repo "$REPO"; return; }
+
+  pass "namespace collision detected in preflight"
+  cleanup_repo "$REPO"
+}
+
+# ---------------------------------------------------------------------------
+# Test: rollback handler tolerates empty CREATED_BRANCHES under set -u
+#
+# Bash 3.2 (still default on macOS) treats "${arr[@]}" on an empty array
+# as unbound. With set -u this used to crash the rollback handler before
+# it could restore the working tree. We exercise the bug directly by
+# sourcing rollback_on_failure with an empty array.
+# ---------------------------------------------------------------------------
+
+test_rollback_with_no_branches_created() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+
+  local OUTPUT
+  OUTPUT=$(
+    bash -c "
+      set -euo pipefail
+      # Stub git so the handler doesn't need a real repo.
+      git() { :; }
+      # Source the script — its tail-guard prevents main from running.
+      source '$FINALIZE'
+
+      ORIG_BRANCH='main'
+      STASHED=false
+      CREATED_BRANCHES=()
+
+      # Trigger the failure branch — the handler reads \$? from its caller.
+      ( exit 1 ) || rollback_on_failure
+    " 2>&1
+  ) || true
+
+  if echo "$OUTPUT" | grep -q "unbound variable"; then
+    fail_test "rollback with no branches" "Empty CREATED_BRANCHES still explodes: $OUTPUT"
+    return
+  fi
+
+  echo "$OUTPUT" | grep -q "Rolled back" || { fail_test "rollback with no branches" "Handler didn't complete: $OUTPUT"; return; }
+
+  pass "rollback handles empty CREATED_BRANCHES"
+}
+
+# ---------------------------------------------------------------------------
 # Run all tests
 # ---------------------------------------------------------------------------
 
@@ -1037,6 +1147,8 @@ test_rollback_on_failure
 test_summary_output
 test_stash_on_dirty_tree
 test_single_group
+test_namespace_collision_with_source_branch
+test_rollback_with_no_branches_created
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

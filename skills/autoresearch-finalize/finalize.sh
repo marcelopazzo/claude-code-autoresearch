@@ -135,6 +135,25 @@ assert_branch_available() {
   fi
 }
 
+# Git stores refs as files, so a branch named 'foo/bar' (a file at
+# refs/heads/foo/bar) blocks creating any descendant like 'foo/bar/baz'
+# (would need refs/heads/foo/bar/ as a directory). The most common case
+# is the source branch sharing a path prefix with the generated PR
+# branches — e.g., source 'autoresearch/sign-throughput' blocks
+# 'autoresearch/sign-throughput/01-…'. Detect this in preflight so the
+# user gets a clear instruction instead of a cryptic git error mid-run.
+assert_namespace_available() {
+  local branch_name="$1"
+  local prefix="${branch_name%/*}"
+  while [ "$prefix" != "$branch_name" ]; do
+    if git rev-parse --verify "refs/heads/$prefix" >/dev/null 2>&1; then
+      fail "Branch '$prefix' exists and blocks creating '$branch_name' — git stores refs as files, so a ref named '$prefix' cannot have descendants. Rename it first: git branch -m '$prefix' '${prefix}-source'"
+    fi
+    branch_name="$prefix"
+    prefix="${prefix%/*}"
+  done
+}
+
 preflight() {
   echo ""
   info "═══ Preflight ═══"
@@ -156,12 +175,14 @@ preflight() {
     group_number=$(printf "%02d" $((i + 1)))
     branch_name="autoresearch/${GOAL}/${group_number}-$(cat "$DATA_DIR/$i.slug")"
     assert_branch_available "$branch_name"
+    assert_namespace_available "$branch_name"
     GROUP_BRANCH[$i]=""
 
     prev_commit=$(cat "$DATA_DIR/$i.last_commit")
   done
 
   assert_branch_available "autoresearch/${GOAL}/verify-tmp"
+  assert_namespace_available "autoresearch/${GOAL}/verify-tmp"
 
   info "Preflight passed."
   echo "  Branch:     $ORIG_BRANCH"
@@ -180,9 +201,14 @@ rollback_on_failure() {
   echo ""
   echo -e "${RED}FAILED — rolling back...${NC}"
   git reset --quiet HEAD -- . 2>/dev/null || true
-  for branch in "${CREATED_BRANCHES[@]}"; do
-    git branch -D "$branch" 2>/dev/null || true
-  done
+  # Iterate only when non-empty: bash < 4.4 + set -u treats "${arr[@]}"
+  # on an empty array as unbound, so a failure before any branch was
+  # created would explode the rollback itself.
+  if [ "${#CREATED_BRANCHES[@]}" -gt 0 ]; then
+    for branch in "${CREATED_BRANCHES[@]}"; do
+      git branch -D "$branch" 2>/dev/null || true
+    done
+  fi
   if [ -n "${ORIG_BRANCH:-}" ]; then
     git checkout "$ORIG_BRANCH" --quiet 2>/dev/null || true
   fi
@@ -254,7 +280,9 @@ create_branches() {
   done
 
   info "Created ${#CREATED_BRANCHES[@]} branches (all from merge-base, independent):"
-  for branch in "${CREATED_BRANCHES[@]}"; do echo "  $branch"; done
+  if [ "${#CREATED_BRANCHES[@]}" -gt 0 ]; then
+    for branch in "${CREATED_BRANCHES[@]}"; do echo "  $branch"; done
+  fi
 
   trap - EXIT
 }
@@ -299,14 +327,16 @@ verify_union_matches_original() {
 
 verify_no_session_artifacts() {
   local clean=true
-  for branch in "${CREATED_BRANCHES[@]}"; do
-    for changed_file in $(git diff-tree --no-commit-id --name-only -r "$(git rev-parse "$branch")" 2>/dev/null); do
-      if is_session_file "$changed_file"; then
-        echo -e "${RED}✗ Session artifact '$changed_file' in branch $branch!${NC}"
-        clean=false
-      fi
+  if [ "${#CREATED_BRANCHES[@]}" -gt 0 ]; then
+    for branch in "${CREATED_BRANCHES[@]}"; do
+      for changed_file in $(git diff-tree --no-commit-id --name-only -r "$(git rev-parse "$branch")" 2>/dev/null); do
+        if is_session_file "$changed_file"; then
+          echo -e "${RED}✗ Session artifact '$changed_file' in branch $branch!${NC}"
+          clean=false
+        fi
+      done
     done
-  done
+  fi
 
   if [ "$clean" = true ]; then
     echo -e "${GREEN}✓ No session artifacts in any branch.${NC}"
@@ -317,19 +347,22 @@ verify_no_session_artifacts() {
 
 verify_no_empty_commits() {
   local errors=0
-  for branch in "${CREATED_BRANCHES[@]}"; do
-    local commit diff
-    commit=$(git rev-parse "$branch" 2>/dev/null)
-    diff=$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null || echo "")
-    if [ -z "$diff" ]; then
-      echo -e "${RED}✗ Empty commit in $branch${NC}"
-      errors=$((errors + 1))
-    fi
-  done
+  if [ "${#CREATED_BRANCHES[@]}" -gt 0 ]; then
+    for branch in "${CREATED_BRANCHES[@]}"; do
+      local commit diff
+      commit=$(git rev-parse "$branch" 2>/dev/null)
+      diff=$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null || echo "")
+      if [ -z "$diff" ]; then
+        echo -e "${RED}✗ Empty commit in $branch${NC}"
+        errors=$((errors + 1))
+      fi
+    done
+  fi
   return $errors
 }
 
 warn_missing_metric_data() {
+  if [ "${#CREATED_BRANCHES[@]}" -eq 0 ]; then return; fi
   for branch in "${CREATED_BRANCHES[@]}"; do
     local msg short
     msg=$(git log -1 --format="%B" "$branch" 2>/dev/null || echo "")
@@ -356,7 +389,9 @@ verify_branches() {
   if [ $errors -gt 0 ]; then
     echo -e "${RED}Verification failed with $errors error(s).${NC}"
     echo -e "${RED}Branches are intact — inspect and fix manually, or delete and retry.${NC}"
-    echo "  Branches: ${CREATED_BRANCHES[*]}"
+    if [ "${#CREATED_BRANCHES[@]}" -gt 0 ]; then
+      echo "  Branches: ${CREATED_BRANCHES[*]}"
+    fi
     echo "  You are on: $(git branch --show-current 2>/dev/null || echo 'detached')"
     cleanup_data
     exit 1
@@ -430,4 +465,7 @@ main() {
   cleanup_data
 }
 
-main "$@"
+# Skip main when sourced (e.g. by tests that exercise individual functions).
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  main "$@"
+fi
