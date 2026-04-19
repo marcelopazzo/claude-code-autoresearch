@@ -11,7 +11,7 @@ GEM
       json-schema (>= 4.1)
     nio4r (2.7.5)
     public_suffix (7.0.5)
-    puma (6.6.1)
+    puma (8.0.0)
       nio4r (~> 2.0)
     rack (3.2.6)
 
@@ -21,7 +21,7 @@ PLATFORMS
 
 DEPENDENCIES
   mcp (~> 0.2)
-  puma (~> 6.4)
+  puma (~> 8.0)
   rack (~> 3.1)
 
 RUBY VERSION
