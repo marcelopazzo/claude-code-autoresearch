@@ -11,7 +11,7 @@ Autonomous experiment loop: try ideas, keep what works, discard what doesn't, ne
 
 - **`init_experiment`** — configure session (name, metric, unit, direction). Call again to re-initialize with a new baseline when the optimization target changes.
 - **`run_experiment`** — runs command, times it, captures output.
-- **`log_experiment`** — records result. `keep` auto-commits. `discard`/`crash`/`checks_failed` auto-reverts code changes (autoresearch files preserved). Always include secondary `metrics` dict. View the dashboard with `/autoresearch dashboard` (or Ctrl+X if you pasted the optional keybinding).
+- **`log_experiment`** — records result. The agent commits the experiment **before** `run_experiment`; `keep` leaves the commit in place. `discard`/`crash`/`checks_failed` auto-reverts both the commit and any working-tree changes back to the pre-run HEAD (autoresearch files preserved). Always include secondary `metrics` dict. View the dashboard with `/autoresearch dashboard` (or Ctrl+X if you pasted the optional keybinding).
 
 ## Setup
 

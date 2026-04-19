@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "mcp"
+require "open3"
 require_relative "../../autoresearch"
 
 module Autoresearch
@@ -44,6 +45,7 @@ module Autoresearch
           end
 
           state = State.load(Paths.jsonl_path)
+          capture_pre_run_head(work_dir)
 
           result = Runner.run(
             command: command,
@@ -90,6 +92,19 @@ module Autoresearch
         end
 
         private
+
+        # Snapshot HEAD so log_experiment can revert any commits the agent
+        # makes between run_experiment and log_experiment when the result
+        # is discarded. Silent no-op when not in a git repo.
+        def capture_pre_run_head(work_dir)
+          head, status = Open3.capture2e("git", "rev-parse", "HEAD", chdir: work_dir)
+          return unless status.success?
+
+          File.write(Paths.pre_run_path, head.strip + "\n")
+        rescue StandardError
+          # If we can't capture, the discard path falls back to the old
+          # working-tree-only revert — never block the run on this.
+        end
 
         def maybe_run_checks(passed:, work_dir:, timeout_s:)
           return nil unless passed

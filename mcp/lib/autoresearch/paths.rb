@@ -30,6 +30,7 @@ module Autoresearch
     def checks_path   = File.join(work_dir, "autoresearch.checks.sh")
     def ideas_path    = File.join(work_dir, "autoresearch.ideas.md")
     def mode_path     = File.join(work_dir, ".autoresearch-mode")
+    def pre_run_path  = File.join(work_dir, ".autoresearch-pre-run")
     def config_path   = File.join(session_cwd, "autoresearch.config.json")
   end
 end

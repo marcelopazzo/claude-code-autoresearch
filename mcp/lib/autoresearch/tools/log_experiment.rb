@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "mcp"
+require "open3"
 require_relative "../../autoresearch"
 
 module Autoresearch
@@ -77,7 +78,9 @@ module Autoresearch
             return error("Cannot keep — previous run's checks failed. Re-run or pass force=true.")
           end
 
-          maybe_revert_code(work_dir: work_dir, status: status)
+          pre_run_head = read_pre_run_head
+          maybe_revert_code(work_dir: work_dir, status: status, pre_run_head: pre_run_head)
+          File.delete(Paths.pre_run_path) if File.exist?(Paths.pre_run_path)
 
           result_entry = {
             "commit" => commit,
@@ -114,13 +117,29 @@ module Autoresearch
           last && last["status"] == "checks_failed"
         end
 
-        # Revert uncommitted changes except session files (autoresearch.*).
-        # The session files track state across iterations and MUST survive reverts.
-        # We use pathspec magic `:(exclude)` to scope git's operations.
-        def maybe_revert_code(work_dir:, status:)
+        def read_pre_run_head
+          return nil unless File.exist?(Paths.pre_run_path)
+
+          head = File.read(Paths.pre_run_path).strip
+          head.match?(/\A[0-9a-f]{4,40}\z/) ? head : nil
+        rescue StandardError
+          nil
+        end
+
+        # Revert any commits the agent made since run_experiment, plus
+        # uncommitted working-tree changes — but always preserve session
+        # files (autoresearch.*). pathspec exclude scopes git's operations.
+        def maybe_revert_code(work_dir:, status:, pre_run_head: nil)
           return if status == "keep"
 
           Dir.chdir(work_dir) do
+            # If the agent committed since run_experiment, walk HEAD back
+            # to the pre-run snapshot. --mixed leaves the working tree
+            # alone so the checkout/clean below handles it consistently.
+            if pre_run_head && head_moved?(pre_run_head)
+              system("git", "reset", "--mixed", pre_run_head,
+                     out: File::NULL, err: File::NULL)
+            end
             # Throw away modifications to tracked files, except session files.
             system("git", "checkout", "--",
                    ":(exclude)autoresearch.*", ".",
@@ -129,6 +148,13 @@ module Autoresearch
             system("git", "clean", "-fd", "-e", "autoresearch.*",
                    out: File::NULL, err: File::NULL)
           end
+        end
+
+        def head_moved?(pre_run_head)
+          current, status = Open3.capture2e("git", "rev-parse", "HEAD")
+          return false unless status.success?
+
+          current.strip != pre_run_head
         end
 
         def format_summary(state:, entry:, confidence:)

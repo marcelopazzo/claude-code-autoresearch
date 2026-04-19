@@ -161,4 +161,63 @@ ensure
   ENV.delete("GEM_HOME")
 end
 
+# ---------------------------------------------------------------------------
+# log_experiment: discard rolls HEAD back to pre-run snapshot
+# ---------------------------------------------------------------------------
+require "json"
+require "open3"
+
+def git(*args, chdir:)
+  out, status = Open3.capture2e("git", *args, chdir: chdir)
+  raise "git #{args.join(' ')} failed: #{out}" unless status.success?
+  out.strip
+end
+
+Dir.mktmpdir do |tmp|
+  ENV["CLAUDE_PROJECT_DIR"] = tmp
+
+  git("init", "--quiet", chdir: tmp)
+  git("config", "user.email", "test@autoresearch.local", chdir: tmp)
+  git("config", "user.name", "Autoresearch Test", chdir: tmp)
+  git("config", "commit.gpgsign", "false", chdir: tmp)
+  File.write(File.join(tmp, "src.rb"), "# v0\n")
+  git("add", "-A", chdir: tmp)
+  git("commit", "-m", "initial", "--quiet", chdir: tmp)
+  baseline_head = git("rev-parse", "HEAD", chdir: tmp)
+
+  # Simulate an experiment commit
+  File.write(File.join(tmp, "src.rb"), "# v1\n")
+  git("add", "-A", chdir: tmp)
+  git("commit", "-m", "experiment", "--quiet", chdir: tmp)
+  experiment_head = git("rev-parse", "HEAD", chdir: tmp)
+  assert experiment_head != baseline_head, "Test setup: experiment commit advances HEAD"
+
+  # Simulate run_experiment having captured the pre-run head as baseline
+  File.write(File.join(tmp, ".autoresearch-pre-run"), baseline_head + "\n")
+  # Simulate a config so log_experiment has somewhere to append
+  File.write(File.join(tmp, "autoresearch.jsonl"), JSON.generate(
+    "type" => "config", "name" => "t", "metricName" => "ms",
+    "metricUnit" => "ms", "bestDirection" => "lower"
+  ) + "\n")
+
+  # Discard: log_experiment should reset HEAD back to baseline
+  Dir.chdir(tmp) do
+    require_relative "../mcp/lib/autoresearch/tools/log_experiment"
+    Autoresearch::Tools::LogExperiment.call(
+      commit: experiment_head[0, 7],
+      metric: 100.0,
+      status: "discard",
+      description: "test discard"
+    )
+  end
+
+  current_head = git("rev-parse", "HEAD", chdir: tmp)
+  assert current_head == baseline_head,
+         "log_experiment(discard): HEAD reset to pre-run snapshot"
+  assert File.read(File.join(tmp, "src.rb")) == "# v0\n",
+         "log_experiment(discard): working tree restored to pre-run state"
+  assert !File.exist?(File.join(tmp, ".autoresearch-pre-run")),
+         "log_experiment: deletes .autoresearch-pre-run after handling"
+end
+
 puts "\nAll checks passed."
