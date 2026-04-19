@@ -117,6 +117,29 @@ Dir.mktmpdir do |tmp|
 end
 
 # ---------------------------------------------------------------------------
+# Runner.sanitize: strips ANSI/control chars so JSON-RPC stays serializable
+# ---------------------------------------------------------------------------
+sanitized = Autoresearch::Runner.sanitize("\e[31mred\e[0m and \e[1;32mgreen\e[m\n")
+assert sanitized == "red and green\n",
+       "sanitize: strips ANSI CSI color codes"
+
+sanitized = Autoresearch::Runner.sanitize("progress 10%\rprogress 50%\rdone\n")
+assert sanitized == "progress 10%\nprogress 50%\ndone\n",
+       "sanitize: converts bare carriage returns to newlines"
+
+sanitized = Autoresearch::Runner.sanitize("title\e]0;new title\abody\n")
+assert sanitized == "titlebody\n",
+       "sanitize: strips OSC escape sequences"
+
+sanitized = Autoresearch::Runner.sanitize("bell\aok\n")
+assert sanitized == "bellok\n",
+       "sanitize: strips C0 control chars but keeps \\t and \\n"
+
+sanitized = Autoresearch::Runner.sanitize("tab\there\nline\n")
+assert sanitized == "tab\there\nline\n",
+       "sanitize: preserves tabs and newlines"
+
+# ---------------------------------------------------------------------------
 # Runner: scrubs Bundler envvars so user scripts get a clean Ruby env
 # ---------------------------------------------------------------------------
 Dir.mktmpdir do |tmp|

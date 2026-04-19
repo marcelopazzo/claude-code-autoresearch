@@ -81,8 +81,10 @@ module Autoresearch
               passed: passed,
               parsed_metrics: parsed,
               primary_metric: primary,
+              output_tail: result.tail,
               checks_pass: checks_result&.[](:pass),
-              checks_timed_out: checks_result&.[](:timed_out) || false
+              checks_timed_out: checks_result&.[](:timed_out) || false,
+              checks_tail: checks_result&.[](:tail)
             }
           )
         end

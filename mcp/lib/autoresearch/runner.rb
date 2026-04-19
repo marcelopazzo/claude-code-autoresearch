@@ -78,12 +78,33 @@ module Autoresearch
     end
 
     # Return the last MAX_LINES lines (capped at MAX_BYTES) from `output`.
+    # Strips ANSI escape codes and other control chars so the JSON-RPC
+    # response stays serializable — without this, tools like benchmark-ips
+    # that paint progress with \r and color codes break MCP with
+    # "Internal error" (-32603).
     def self.tail(output)
       lines = output.to_s.lines
       tail_lines = lines.last(MAX_LINES)
       joined = tail_lines.join
       joined = joined.byteslice(-MAX_BYTES, MAX_BYTES) if joined.bytesize > MAX_BYTES
-      joined
+      sanitize(joined)
+    end
+
+    # Strip ANSI/OSC escape sequences, bare carriage returns, and other
+    # C0 control bytes (keeping \t and \n).
+    ANSI_CSI_RE = /\e\[[0-9;?]*[ -\/]*[@-~]/
+    ANSI_OSC_RE = /\e\][^\a\e]*(?:\a|\e\\)/
+    C0_CONTROL_RE = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/
+
+    def self.sanitize(str)
+      (+str.to_s)
+        .force_encoding("UTF-8")
+        .scrub("?")
+        .gsub(ANSI_CSI_RE, "")
+        .gsub(ANSI_OSC_RE, "")
+        .gsub("\r\n", "\n")
+        .tr("\r", "\n")
+        .gsub(C0_CONTROL_RE, "")
     end
 
     def self.kill_tree(pid)
