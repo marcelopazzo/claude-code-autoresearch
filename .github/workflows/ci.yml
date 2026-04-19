@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@7372622e62b60b3cb750dcd2b9e32c247ffec26a # v1.302.0
+        with:
+          ruby-version: "3.3"
+          working-directory: mcp
+          bundler-cache: true
+      - run: ruby tests/library_smoke_test.rb
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/mcp/Gemfile
