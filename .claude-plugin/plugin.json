@@ -1,6 +1,6 @@
 {
   "name": "claude-code-autoresearch",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Autonomous experiment loop for Claude Code — run, measure, keep or discard. Ruby port of davebcn87/pi-autoresearch.",
   "author": {
     "name": "Marcelo Almeida"

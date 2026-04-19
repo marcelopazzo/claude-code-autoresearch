@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Autoresearch
-  VERSION = "0.1.2"
+  VERSION = "0.1.3"
 
   SESSION_FILE_PREFIX = "autoresearch."
 
