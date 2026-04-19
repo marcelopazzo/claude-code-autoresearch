@@ -61,6 +61,7 @@ Write `groups.json`:
 Key rules:
 - **`last_commit` must be a full hash.** Expand from jsonl short hashes with `git rev-parse`.
 - **No two groups may share a file.** The script validates this and fails if violated.
+- **Don't filter session files manually.** Any file whose basename matches `autoresearch.*` (jsonl, md, sh, ideas.md, checks.sh) is automatically excluded from generated branches at any depth. Just list the real files in your group plan; the script handles the rest.
 
 Then run:
 
