@@ -1,26 +1,28 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    addressable (2.9.0)
-      public_suffix (>= 2.0.2, < 8.0)
     bigdecimal (4.1.2)
-    json-schema (6.2.0)
-      addressable (~> 2.8)
-      bigdecimal (>= 3.1, < 5)
-    mcp (0.13.0)
-      json-schema (>= 4.1)
+    hana (1.3.7)
+    json_schemer (2.5.0)
+      bigdecimal
+      hana (~> 1.3)
+      regexp_parser (~> 2.0)
+      simpleidn (~> 0.2)
+    mcp (0.20.0)
+      json_schemer (>= 2.4)
     nio4r (2.7.5)
-    public_suffix (7.0.5)
     puma (8.0.0)
       nio4r (~> 2.0)
     rack (3.2.6)
+    regexp_parser (2.12.0)
+    simpleidn (0.2.3)
 
 PLATFORMS
   ruby
   x86_64-linux
 
 DEPENDENCIES
-  mcp (~> 0.2)
+  mcp (~> 0.20)
   puma (~> 8.0)
   rack (~> 3.1)
 
